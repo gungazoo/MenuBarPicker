@@ -1,0 +1,21 @@
+# Compiled binary
+MenuBarPicker
+
+# macOS
+.DS_Store
+._*
+
+# Swift build artifacts
+.build/
+.swiftpm/
+*.o
+*.d
+*.swp
+*~
+
+# Xcode (if ever added)
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+build/
