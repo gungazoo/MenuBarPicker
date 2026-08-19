@@ -4,9 +4,8 @@ A native macOS menu-bar search tool.  Type to fuzzy-filter every menu
 item of the frontmost application, then press Enter to click it.
 
 <span>
-  <img src='assets/finder.png' width='33%' alt='finder'>
-  <img src='assets/photos.png' width='33%' alt='photos'>
-  <img src='assets/music.png' width='33%' alt='music'>
+  <img src='assets/iterm2.png' width='45%' alt='iTerm2 menu search'>
+  <img src='assets/edge.png' width='45%' alt='Edge menu search'>
 </span>
 
 
