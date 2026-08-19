@@ -54,24 +54,36 @@ Or use the included build script:
 ## Accessibility / TCC setup
 
 MenuBarPicker uses the macOS Accessibility API to read and click menu items.
-The first time you run it, macOS will prompt you to grant permission.
+The app bundle is signed with a stable `CFBundleIdentifier`
+(`com.gungazoo.MenuBarPicker`), so TCC permission survives rebuilds.
 
 1. **System Settings → Privacy & Security → Accessibility**
-2. Add the `MenuBarPicker` binary (and Terminal / Shortcuts if you launch from there)
-3. If the prompt doesn't appear, the binary prints a clear error to stderr
-
-If you move or rebuild the binary, you may need to remove and re-add it.
+2. Remove any old `MenuBarPicker` entries (bare binaries from before the `.app` bundle)
+3. Add `MenuBarPicker.app` (drag from Finder, or click `+` and navigate to it)
+4. The identity is now stable — rebuilds no longer require re-adding
 
 
 ## Apple Shortcuts integration
 
 1. Create a new Shortcut
-2. Add **Run Shell Script** (Shell: `/bin/bash`, Input: none)
-3. Paste:
+2. Add **Run Shell Script** with these settings:
+   - **Shell**: `/bin/bash`
+   - **Input**: No Input
+   - **Pass Input**: (leave default / to stdin)
+3. Paste the **full path to the binary inside the bundle**:
    ```bash
-   /path/to/MenuBarPicker
+   /Users/panderson/src/personal/MenuBarPicker/MenuBarPicker.app/Contents/MacOS/MenuBarPicker
+   ```
+   Or use the convenience symlink at the repo root:
+   ```bash
+   /Users/panderson/src/personal/MenuBarPicker/MenuBarPicker
    ```
 4. Assign a keyboard shortcut to the Shortcut
+
+> **⚠️ Do NOT use any of these — they will break PID detection or fail:**
+> - `open MenuBarPicker.app` — launches asynchronously, steals focus, breaks target-app detection
+> - `MenuBarPicker.app` — this is a directory, not an executable (`cannot execute binary file`)
+> - An "Open App" Shortcuts action — same focus-stealing problem as `open`
 
 The picker handles everything: PID detection, menu enumeration, UI, focus
 restoration, and clicking.
@@ -80,8 +92,13 @@ restoration, and clicking.
 ## Project layout
 
 ```
-MenuBarPicker              ← compiled binary (after build)
+MenuBarPicker.app/         ← signed .app bundle (after build)
+  Contents/
+    Info.plist
+    MacOS/MenuBarPicker    ← compiled binary
+MenuBarPicker              ← convenience symlink → .app binary
 build.sh                   ← build script
+Info.plist                 ← bundle metadata (copied into .app by build.sh)
 scripts/
   MenuBarPicker.swift      ← standalone picker source (single file)
 assets/                    ← screenshots and icons

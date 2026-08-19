@@ -1,5 +1,6 @@
-# Compiled binary
+# Compiled binary / app bundle
 MenuBarPicker
+MenuBarPicker.app/
 
 # macOS
 .DS_Store
