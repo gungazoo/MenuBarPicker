@@ -5,7 +5,7 @@ item of the frontmost application, then press Enter to click it.
 
 <span>
   <img src='assets/iterm2.png' width='45%' alt='iTerm2 menu search'>
-  <img src='assets/edge.png' width='45%' alt='Edge menu search'>
+  <img src='assets/proton-menu.png' width='45%' alt='Proton Mail menu search'>
 </span>
 
 
