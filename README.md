@@ -72,11 +72,11 @@ The app bundle is signed with a stable `CFBundleIdentifier`
    - **Pass Input**: (leave default / to stdin)
 3. Paste the **full path to the binary inside the bundle**:
    ```bash
-   /Users/panderson/src/personal/MenuBarPicker/MenuBarPicker.app/Contents/MacOS/MenuBarPicker
+   /Applications/MenuBarPicker.app/Contents/MacOS/MenuBarPicker
    ```
    Or use the convenience symlink at the repo root:
    ```bash
-   /Users/panderson/src/personal/MenuBarPicker/MenuBarPicker
+   /Applications/MenuBarPicker/MenuBarPicker
    ```
 4. Assign a keyboard shortcut to the Shortcut
 
