@@ -11,9 +11,14 @@
 //   swiftc -O -o MenuBarPicker MenuBarPicker.swift \
 //     -framework Cocoa -framework ApplicationServices
 //
-// Apple Shortcut (single action):
-//   "Run Shell Script" — Shell: /bin/bash, Input: (none)
-//   /path/to/MenuBarPicker
+// Apple Shortcut (single "Run Shell Script" action, Shell: /bin/bash, Input: none):
+//   PID=$(lsappinfo info -only pid $(lsappinfo front) | grep -o '[0-9]*')
+//   open -g /path/to/MenuBarPicker.app --args -pid "$PID"
+//   while pgrep -f 'MenuBarPicker.app/Contents/MacOS/MenuBarPicker' >/dev/null 2>&1; do sleep 0.2; done
+//
+// IMPORTANT: Must use 'open' (LaunchServices) so TCC attributes Accessibility
+// to com.gungazoo.MenuBarPicker.  Direct binary execution from Shortcuts causes
+// TCC to attribute to BackgroundShortcutRunner, triggering per-app prompts.
 //
 // The executable:
 //   1. Resolves the frontmost non-Shortcuts app PID
@@ -307,67 +312,11 @@ func resolveViaFallback() -> pid_t? {
     return nil
 }
 
-// ─── Strategy 5 (bounded): System Events via osascript ─────────
-//
-// Only used as a last resort.  Bounded to 2 seconds.
-// System Events talks to the window server via Apple Events,
-// which is reliable but costs 265–1800 ms.
-
-func resolveViaSystemEvents() -> pid_t? {
-    let script = """
-    tell application "System Events"
-      set allProcs to every process whose visible is true
-      repeat with p in allProcs
-        set bid to bundle identifier of p
-        if bid is not "com.apple.shortcuts" and \
-           bid does not contain "BackgroundShortcutRunner" and \
-           bid does not contain "WorkflowKit" then
-          if frontmost of p is true then
-            return unix id of p as text
-          end if
-        end if
-      end repeat
-      repeat with p in allProcs
-        set bid to bundle identifier of p
-        if bid is not "com.apple.shortcuts" and \
-           bid does not contain "BackgroundShortcutRunner" and \
-           bid does not contain "WorkflowKit" then
-          return unix id of p as text
-        end if
-      end repeat
-      return ""
-    end tell
-    """
-    let proc = Process()
-    proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-    proc.arguments = ["-e", script]
-    let pipe = Pipe()
-    proc.standardOutput = pipe
-    proc.standardError = FileHandle.nullDevice
-    do {
-        try proc.run()
-        // Bounded wait: 2 seconds max
-        let deadline = DispatchTime.now() + .seconds(2)
-        let waitGroup = DispatchGroup()
-        waitGroup.enter()
-        DispatchQueue.global().async {
-            proc.waitUntilExit()
-            waitGroup.leave()
-        }
-        if waitGroup.wait(timeout: deadline) == .timedOut {
-            proc.terminate()
-            fputs("  System Events timed out (>2s)\n", stderr)
-            return nil
-        }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        if let s = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-           let v = Int32(s), v > 0 {
-            if benchmarkMode { fputs("  PID via System Events: \(v)\n", stderr) }
-            return v
-        }
-    } catch {}
-    return nil
-}
+// NOTE: resolveViaSystemEvents was removed.  It launched osascript to
+// query "System Events" via Apple Events, which triggers macOS TCC
+// "Automation" / "Device Control" prompts for every target application.
+// All current strategies use only CoreGraphics/NSWorkspace APIs covered
+// by the single Accessibility TCC grant.
 
 // ─── Combined resolution — layered fast-to-slow ───────────────
 
@@ -386,12 +335,16 @@ func resolveFrontmostPID() -> PIDResolution? {
         let resolve: () -> pid_t?
     }
 
+    // NOTE: System Events (osascript/AppleScript) is intentionally excluded.
+    // It sends Apple Events, which triggers per-app "Automation" / "Device Control"
+    // TCC prompts for every target application.  All strategies here use only
+    // CoreGraphics and NSWorkspace APIs that are covered by the single
+    // Accessibility TCC grant for com.gungazoo.MenuBarPicker.
     let strategies: [Strategy] = [
         Strategy(name: "NSWorkspace")       { resolveViaWorkspace() },
         Strategy(name: "CGWindowList")      { resolveViaCGWindowList() },
         Strategy(name: "PID cache")         { resolveViaCachedPID() },
         Strategy(name: "Fallback")          { resolveViaFallback() },
-        Strategy(name: "System Events")     { resolveViaSystemEvents() },
     ]
 
     for strat in strategies {
@@ -427,7 +380,7 @@ func runBenchmark() {
         ("NSWorkspace",       resolveViaWorkspace),
         ("PID cache",         resolveViaCachedPID),
         ("Fallback",          resolveViaFallback),
-        ("System Events",     resolveViaSystemEvents),
+        // System Events intentionally excluded — triggers Automation TCC prompts
     ]
 
     var results: [BenchResult] = []

@@ -65,27 +65,31 @@ The app bundle is signed with a stable `CFBundleIdentifier`
 ## Apple Shortcuts integration
 
 1. Create a new Shortcut
-2. Add **Run Shell Script** with these settings:
+2. Add a single **Run Shell Script** action:
    - **Shell**: `/bin/bash`
    - **Input**: No Input
    - **Pass Input**: (leave default / to stdin)
-3. Paste the **full path to the binary inside the bundle**:
+3. Paste this script (adjust the path to your .app location):
    ```bash
-   /Applications/MenuBarPicker.app/Contents/MacOS/MenuBarPicker
-   ```
-   Or use the convenience symlink at the repo root:
-   ```bash
-   /Applications/MenuBarPicker/MenuBarPicker
+   PID=$(lsappinfo info -only pid $(lsappinfo front) | grep -o '[0-9]*')
+   open -g /Users/panderson/src/personal/MenuBarPicker/MenuBarPicker.app --args -pid "$PID"
+   while pgrep -f 'MenuBarPicker.app/Contents/MacOS/MenuBarPicker' >/dev/null 2>&1; do sleep 0.2; done
    ```
 4. Assign a keyboard shortcut to the Shortcut
 
-> **⚠️ Do NOT use any of these — they will break PID detection or fail:**
-> - `open MenuBarPicker.app` — launches asynchronously, steals focus, breaks target-app detection
-> - `MenuBarPicker.app` — this is a directory, not an executable (`cannot execute binary file`)
-> - An "Open App" Shortcuts action — same focus-stealing problem as `open`
+**Why this pattern?**  Using `open -g` launches via LaunchServices, so macOS
+attributes all Accessibility API calls to `com.gungazoo.MenuBarPicker` (the
+bundle's stable identity).  The PID is captured *before* launch so the picker
+knows which app's menus to enumerate.  The `while/pgrep` loop makes Shortcuts
+wait for the picker to finish.
 
-The picker handles everything: PID detection, menu enumeration, UI, focus
-restoration, and clicking.
+> **⚠️ Do NOT run the binary directly from Shortcuts:**
+> ```bash
+> # WRONG — triggers per-app "Device Control" prompts on macOS 15+
+> /path/to/MenuBarPicker.app/Contents/MacOS/MenuBarPicker
+> ```
+> Direct execution inherits BackgroundShortcutRunner's process context,
+> causing TCC to attribute Accessibility calls to the wrong identity.
 
 
 ## Project layout
